@@ -1,7 +1,10 @@
-#ifndef NDSCART_H
-#define NDSCART_H
+#include "cpu/cpu.h"
+#include <stdlib.h>
+#include <stdio.h>
 
-#include "../types.h"
+#ifdef _DEBUG
+	#include "gui/debugger.h"
+#endif
 
 struct nds_header_t{
     u8    GameTitle[12];
@@ -48,4 +51,45 @@ struct nds_header_t{
     u8    Reserved03[0x90];
 }__attribute__((__packed__))nds_header_t;
 
+int main(int argc, char* argv[])
+{
+    u32 x = 0xFF + 4;
+    ndsCPU *arm9 = create_cpu_arm9();
+	
+#ifdef _DEBUG
+
+	gtk_init (&argc, &argv);
+
+	//u8 m_main[0x1000000]
+	struct nds_header_t header;
+	FILE *rom = fopen("dslinux.nds", "rb");
+	fseek(rom, 0, SEEK_SET);
+	fread(&header, sizeof(struct nds_header_t), sizeof(u8), rom);
+	fseek(rom, header.ARM9rom_offset, SEEK_SET);
+
+	fread(arm9->memory->MAIN, header.ARM9size, sizeof(u8), rom);
+
+	arm9->newpc = header.ARM9entry_adress;
+	arm9->R[15] = header.ARM9entry_adress;
+
+	fclose(rom);
+
+	endsdbg *debugger = endsdbg_create(arm9);
+	
+	if( debugger ){
+		debugger->run(debugger);	
+		endsdbg_destroy(debugger);	
+		return 0;
+	} else {
+		return -1;
+	}
+	
+	return 0;
+
 #endif
+
+	arm9->exec(arm9);
+
+    return 0;
+}
+
